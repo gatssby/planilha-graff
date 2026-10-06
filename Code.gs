@@ -3,12 +3,13 @@ const CONFIG = {
   SHEET_ENTRIES: 'Lançamentos',
   PEOPLE: ['Valciria', 'Deco', 'Vivi', 'Nega', 'Valdi'],
   SAVINGS_GOAL: 3000,
+  HEADER_ROW: 12,
 };
 
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Controle Familiar')
-    .addItem('Configurar planilha', 'setupSpreadsheet')
+    .addItem('Configurar / atualizar planilha', 'setupSpreadsheet')
     .addItem('Atualizar resumo', 'refreshDashboard')
     .addToUi();
 }
@@ -19,21 +20,33 @@ function setupSpreadsheet() {
   ss.setSpreadsheetTimeZone('America/Sao_Paulo');
 
   const sheet = getOrCreateSheet_(ss, CONFIG.SHEET_ENTRIES);
+  const existingEntries = readExistingEntries_(sheet);
+
   setupEntriesSheet_(sheet);
+
+  if (existingEntries.length) {
+    sheet.getRange(CONFIG.HEADER_ROW + 1, 1, existingEntries.length, 4)
+      .setValues(existingEntries);
+  }
+
   refreshDashboard();
 
   const oldDashboard = ss.getSheetByName('Resumo');
-  if (oldDashboard && ss.getSheets().length > 1) ss.deleteSheet(oldDashboard);
+  if (oldDashboard && oldDashboard.getSheetId() !== sheet.getSheetId() && ss.getSheets().length > 1) {
+    ss.deleteSheet(oldDashboard);
+  }
 
   ss.setActiveSheet(sheet);
-  SpreadsheetApp.getUi().alert('Planilha configurada. Lançamentos e resumo ficam juntos na mesma aba.');
+  SpreadsheetApp.getUi().alert(
+    'Planilha atualizada. O resumo e os lançamentos ficam juntos na mesma aba.'
+  );
 }
 
 function onEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
   if (sheet.getName() !== CONFIG.SHEET_ENTRIES) return;
-  if (e.range.getRow() < 13) return;
+  if (e.range.getRow() <= CONFIG.HEADER_ROW) return;
   refreshDashboard();
 }
 
@@ -42,9 +55,10 @@ function refreshDashboard() {
   const sheet = ss.getSheetByName(CONFIG.SHEET_ENTRIES);
   if (!sheet) return;
 
+  const firstDataRow = CONFIG.HEADER_ROW + 1;
   const lastRow = sheet.getLastRow();
-  const rows = lastRow >= 13
-    ? sheet.getRange(13, 1, lastRow - 12, 4).getValues()
+  const rows = lastRow >= firstDataRow
+    ? sheet.getRange(firstDataRow, 1, lastRow - CONFIG.HEADER_ROW, 4).getValues()
     : [];
 
   const contributions = Object.fromEntries(CONFIG.PEOPLE.map(name => [name, 0]));
@@ -70,96 +84,144 @@ function refreshDashboard() {
     ? Math.max(0, Math.min(reserve / CONFIG.SAVINGS_GOAL, 1))
     : 0;
 
-  sheet.getRange('B3').setValue(totalContributed);
-  sheet.getRange('B4').setValue(totalSpent);
-  sheet.getRange('B5').setValue(reserve);
-  sheet.getRange('B6').setValue(CONFIG.SAVINGS_GOAL);
-  sheet.getRange('B7').setValue(progress);
+  // Resumo compacto.
+  sheet.getRange('B2').setValue(reserve).setNumberFormat('R$ #,##0.00');
+  sheet.getRange('D2').setValue(CONFIG.SAVINGS_GOAL).setNumberFormat('R$ #,##0.00');
+  sheet.getRange('A3:D3').merge();
+  sheet.getRange('A3').setFormula('=SPARKLINE(MAX(0,MIN(B2/D2,1)),{"charttype","bar";"max",1})');
 
-  const output = CONFIG.PEOPLE.map(name => [
-    name,
-    contributions[name],
-    fairShare,
-    contributions[name] - fairShare,
-  ]);
-  sheet.getRange(3, 6, CONFIG.PEOPLE.length, 4).setValues(output);
-  sheet.getRange(3, 7, CONFIG.PEOPLE.length, 3).setNumberFormat('R$ #,##0.00');
+  // Estilo Splitwise: ninguém "deve para" outra pessoa.
+  // Se o saldo está negativo, a pessoa deve contribuir esse valor para o caixa/reserva.
+  // Se está positivo, o valor continua sendo crédito individual dela dentro da reserva.
+  const statuses = CONFIG.PEOPLE.map(name => {
+    const balance = contributions[name] - fairShare;
+    if (balance < -0.005) return [name, 'Deve contribuir', Math.abs(balance)];
+    if (balance > 0.005) return [name, 'A haver', balance];
+    return [name, 'Em dia', 0];
+  });
 
-  const balanceRange = sheet.getRange(3, 9, CONFIG.PEOPLE.length, 1);
-  const rules = [
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberGreaterThan(0).setBackground('#d9ead3').setFontColor('#274e13')
-      .setRanges([balanceRange]).build(),
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberLessThan(0).setBackground('#f4cccc').setFontColor('#990000')
-      .setRanges([balanceRange]).build(),
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberEqualTo(0).setBackground('#eeeeee').setFontColor('#666666')
-      .setRanges([balanceRange]).build(),
-  ];
-  sheet.setConditionalFormatRules(rules);
+  sheet.getRange(6, 1, CONFIG.PEOPLE.length, 3).setValues(statuses);
+  sheet.getRange(6, 3, CONFIG.PEOPLE.length, 1).setNumberFormat('R$ #,##0.00');
 
-  sheet.getRange('B7').setNumberFormat('0%');
-  sheet.getRange('A8:D8').merge();
-  sheet.getRange('A8').setFormula('=SPARKLINE(B7,{"charttype","bar";"max",1})');
+  const backgrounds = [];
+  const fontColors = [];
+  statuses.forEach(([, status]) => {
+    if (status === 'Deve contribuir') {
+      backgrounds.push(['#ffffff', '#fce8e6', '#fce8e6']);
+      fontColors.push(['#222222', '#b3261e', '#b3261e']);
+    } else if (status === 'A haver') {
+      backgrounds.push(['#ffffff', '#e6f4ea', '#e6f4ea']);
+      fontColors.push(['#222222', '#137333', '#137333']);
+    } else {
+      backgrounds.push(['#ffffff', '#f1f3f4', '#f1f3f4']);
+      fontColors.push(['#222222', '#5f6368', '#5f6368']);
+    }
+  });
+  sheet.getRange(6, 1, CONFIG.PEOPLE.length, 3)
+    .setBackgrounds(backgrounds)
+    .setFontColors(fontColors);
 }
 
 function setupEntriesSheet_(sheet) {
   sheet.clear();
-  sheet.setFrozenRows(12);
+  sheet.setFrozenRows(0);
   sheet.setTabColor('#444444');
 
-  sheet.getRange('A1:I1').merge().setValue(CONFIG.TITLE);
-  sheet.getRange('A1:I1')
-    .setFontSize(18).setFontWeight('bold').setHorizontalAlignment('center')
-    .setBackground('#222222').setFontColor('#ffffff');
+  // Cabeçalho pequeno para ocupar pouco espaço no celular.
+  sheet.getRange('A1:D1').merge().setValue(CONFIG.TITLE);
+  sheet.getRange('A1:D1')
+    .setFontSize(14)
+    .setFontWeight('bold')
+    .setHorizontalAlignment('left')
+    .setBackground('#222222')
+    .setFontColor('#ffffff');
+  sheet.setRowHeight(1, 28);
 
-  sheet.getRange('A3:A7').setValues([
-    ['Total contribuído'],
-    ['Total gasto'],
-    ['Reserva atual'],
-    ['Meta da reserva'],
-    ['Progresso'],
-  ]).setFontWeight('bold');
-  sheet.getRange('B3:B6').setNumberFormat('R$ #,##0.00');
+  sheet.getRange('A2:D2').setValues([['Reserva', '', 'Meta', '']]);
+  sheet.getRange('A2').setFontWeight('bold');
+  sheet.getRange('C2').setFontWeight('bold');
+  sheet.setRowHeight(2, 28);
+  sheet.setRowHeight(3, 16);
 
-  sheet.getRange('F2:I2').setValues([['Pessoa', 'Contribuiu', 'Cota dos gastos', 'Saldo']]);
-  sheet.getRange('F2:I2')
-    .setFontWeight('bold').setBackground('#eeeeee').setHorizontalAlignment('center');
+  sheet.getRange('A5:C5').setValues([['Pessoa', 'Situação', 'Valor']]);
+  sheet.getRange('A5:C5')
+    .setFontWeight('bold')
+    .setFontColor('#5f6368')
+    .setHorizontalAlignment('left');
+  sheet.setRowHeight(5, 24);
 
-  sheet.getRange('A10:I10').merge().setValue('Lançamentos');
-  sheet.getRange('A10:I10').setFontWeight('bold').setFontSize(13);
+  sheet.getRange('A11:D11').merge().setValue('Lançamentos');
+  sheet.getRange('A11:D11')
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setFontColor('#5f6368');
+  sheet.setRowHeight(11, 24);
 
-  sheet.getRange('A12:D12').setValues([['Pessoa', 'Data', 'Valor', 'Observação']]);
-  sheet.getRange('A12:D12')
-    .setFontWeight('bold').setBackground('#222222').setFontColor('#ffffff')
+  sheet.getRange(CONFIG.HEADER_ROW, 1, 1, 4)
+    .setValues([['Pessoa', 'Data', 'Valor', 'Observação']])
+    .setFontWeight('bold')
+    .setBackground('#222222')
+    .setFontColor('#ffffff')
     .setHorizontalAlignment('center');
 
   const validation = SpreadsheetApp.newDataValidation()
-    .requireValueInList(CONFIG.PEOPLE, true).setAllowInvalid(false).build();
-  sheet.getRange('A13:A1000').setDataValidation(validation);
-  sheet.getRange('B13:B1000').setNumberFormat('dd/mm/yyyy');
-  sheet.getRange('C13:C1000').setNumberFormat('R$ #,##0.00');
-  sheet.getRange('A13:D1000').setVerticalAlignment('middle');
+    .requireValueInList(CONFIG.PEOPLE, true)
+    .setAllowInvalid(false)
+    .build();
 
-  sheet.setColumnWidth(1, 110);
-  sheet.setColumnWidth(2, 95);
+  const firstDataRow = CONFIG.HEADER_ROW + 1;
+  sheet.getRange(firstDataRow, 1, 988, 1).setDataValidation(validation);
+  sheet.getRange(firstDataRow, 2, 988, 1).setNumberFormat('dd/mm/yyyy');
+  sheet.getRange(firstDataRow, 3, 988, 1).setNumberFormat('R$ #,##0.00');
+  sheet.getRange(firstDataRow, 1, 988, 4).setVerticalAlignment('middle');
+
+  // Larguras pensadas para uso no celular.
+  sheet.setColumnWidth(1, 105);
+  sheet.setColumnWidth(2, 92);
   sheet.setColumnWidth(3, 105);
-  sheet.setColumnWidth(4, 240);
-  sheet.setColumnWidth(5, 24);
-  sheet.setColumnWidth(6, 110);
-  sheet.setColumnWidth(7, 115);
-  sheet.setColumnWidth(8, 125);
-  sheet.setColumnWidth(9, 110);
-  sheet.setRowHeights(1, 1000, 34);
+  sheet.setColumnWidth(4, 220);
 
-  sheet.getRange('K1').setValue('Como usar');
-  sheet.getRange('K2').setValue('Contribuição: valor positivo + nome da pessoa.');
-  sheet.getRange('K3').setValue('Gasto com os avós: valor negativo. O nome pode ficar em branco.');
-  sheet.hideColumns(11);
+  sheet.setRowHeights(6, CONFIG.PEOPLE.length, 28);
+  sheet.setRowHeights(firstDataRow, 988, 32);
+
+  // Instruções ficam escondidas para não poluir a interface.
+  sheet.getRange('F1').setValue('Como usar');
+  sheet.getRange('F2').setValue('Contribuição: valor positivo + nome da pessoa.');
+  sheet.getRange('F3').setValue('Gasto com os avós: valor negativo; Pessoa pode ficar em branco.');
+  sheet.getRange('F4').setValue('“Deve contribuir” significa repor esse valor no caixa/reserva familiar.');
+  sheet.hideColumns(6);
 
   if (sheet.getFilter()) sheet.getFilter().remove();
-  sheet.getRange('A12:D1000').createFilter();
+  sheet.getRange(CONFIG.HEADER_ROW, 1, 989, 4).createFilter();
+}
+
+function readExistingEntries_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (!lastRow) return [];
+
+  const searchRows = Math.min(lastRow, 30);
+  const values = sheet.getRange(1, 1, searchRows, 4).getValues();
+  let headerRow = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i].map(value => String(value || '').trim());
+    if (
+      row[0] === 'Pessoa' &&
+      row[1] === 'Data' &&
+      row[2] === 'Valor' &&
+      row[3] === 'Observação'
+    ) {
+      headerRow = i + 1;
+      break;
+    }
+  }
+
+  if (!headerRow || lastRow <= headerRow) return [];
+
+  return sheet
+    .getRange(headerRow + 1, 1, lastRow - headerRow, 4)
+    .getValues()
+    .filter(row => row.some(value => value !== '' && value !== null));
 }
 
 function getOrCreateSheet_(ss, name) {
