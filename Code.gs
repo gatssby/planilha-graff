@@ -80,9 +80,6 @@ function refreshDashboard() {
 
   const fairShare = CONFIG.PEOPLE.length ? totalSpent / CONFIG.PEOPLE.length : 0;
   const reserve = totalContributed - totalSpent;
-  const progress = CONFIG.SAVINGS_GOAL > 0
-    ? Math.max(0, Math.min(reserve / CONFIG.SAVINGS_GOAL, 1))
-    : 0;
 
   // Resumo compacto.
   sheet.getRange('B2').setValue(reserve).setNumberFormat('R$ #,##0.00');
@@ -123,7 +120,13 @@ function refreshDashboard() {
 }
 
 function setupEntriesSheet_(sheet) {
+  // Permite reaplicar o layout mesmo sobre versões anteriores da planilha.
+  if (sheet.getFilter()) sheet.getFilter().remove();
+  sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
+  sheet.showColumns(1, sheet.getMaxColumns());
+  sheet.setConditionalFormatRules([]);
   sheet.clear();
+
   sheet.setFrozenRows(0);
   sheet.setTabColor('#444444');
 
@@ -191,7 +194,6 @@ function setupEntriesSheet_(sheet) {
   sheet.getRange('F4').setValue('“Deve contribuir” significa repor esse valor no caixa/reserva familiar.');
   sheet.hideColumns(6);
 
-  if (sheet.getFilter()) sheet.getFilter().remove();
   sheet.getRange(CONFIG.HEADER_ROW, 1, 989, 4).createFilter();
 }
 
