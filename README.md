@@ -4,55 +4,38 @@ Google Apps Script para criar uma planilha simples de controle familiar no Googl
 
 ## Pessoas
 
-- Val Síria
+- Valciria
 - Deco
 - Vivi
 - Nega
 - Valdi
 
-## Como funciona
+## Estrutura
 
-A aba **Lançamentos** tem somente quatro campos visíveis:
+Tudo fica na mesma aba **Lançamentos**:
 
-1. Pessoa
-2. Data
-3. Valor
-4. Observação
+- resumo financeiro e saldos individuais no topo;
+- lançamentos logo abaixo;
+- quatro campos de entrada: Pessoa, Data, Valor e Observação.
 
 ### Regra de lançamento
 
 - **Contribuição:** selecione a pessoa e informe um valor positivo.
-- **Gasto com os avós:** informe um valor negativo. O campo Pessoa pode ficar em branco.
+- **Gasto com os avós:** informe um valor negativo. Pessoa pode ficar em branco.
 
-Exemplo:
+O resumo calcula automaticamente total contribuído, total gasto, reserva atual, progresso até R$ 3.000, cota dos gastos e saldo individual.
 
-- Val Síria contribuiu R$ 500 → `Val Síria | 06/10/2026 | 500 | Contribuição`
-- Houve R$ 200 de gasto com remédio → `| 06/10/2026 | -200 | Remédio`
+Saldo individual = contribuição da pessoa − 1/5 dos gastos realizados.
 
-## Cálculos automáticos
+## Instalação / atualização
 
-O resumo calcula:
+1. Abra a planilha no Google Sheets.
+2. Vá em **Extensões → Apps Script**.
+3. Substitua todo o conteúdo de `Code.gs` pelo `Code.gs` deste repositório.
+4. Salve.
+5. No seletor de funções do Apps Script, escolha `setupSpreadsheet`.
+6. Clique em **Executar** e autorize, se solicitado.
 
-- total contribuído;
-- total gasto;
-- reserva atual = contribuições − gastos;
-- meta inicial de reserva de R$ 3.000;
-- barra de progresso da reserva;
-- contribuição acumulada de cada pessoa;
-- cota atual dos gastos = gastos totais ÷ 5;
-- saldo individual = contribuição da pessoa − cota atual dos gastos.
+**Atenção:** `setupSpreadsheet()` recria o layout da aba Lançamentos e limpa seu conteúdo. Faça isso antes de começar a lançar dados. Depois da configuração inicial, não é necessário executá-la novamente para uso normal.
 
-Saldo positivo significa valor a haver daquela pessoa. Saldo negativo significa que, considerando apenas os gastos efetivamente registrados até aquele momento, ela contribuiu menos que sua parcela de 1/5.
-
-O excedente de uma pessoa permanece atribuído a ela no saldo individual e, enquanto não for gasto, também compõe a reserva familiar.
-
-## Instalação
-
-1. Crie uma planilha vazia no Google Sheets.
-2. Abra **Extensões → Apps Script**.
-3. Substitua o conteúdo de `Code.gs` pelo arquivo deste repositório.
-4. Se quiser, copie também o conteúdo de `appsscript.json` para o manifesto do projeto.
-5. Salve e execute `setupSpreadsheet()` uma vez.
-6. Autorize o script quando o Google solicitar.
-
-Depois disso, use apenas a aba **Lançamentos** no dia a dia. A aba **Resumo** é atualizada automaticamente a cada edição.
+A função também remove a antiga aba **Resumo**, caso exista, pois o resumo agora fica na própria aba **Lançamentos**.
