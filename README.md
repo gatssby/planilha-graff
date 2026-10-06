@@ -14,40 +14,64 @@ Google Apps Script para criar uma planilha simples de controle familiar no Googl
 
 Tudo fica na mesma aba **Lançamentos**.
 
-No topo há somente um resumo compacto com a situação de cada pessoa. Logo abaixo ficam os quatro campos de entrada:
+No topo há um resumo compacto com:
+
+- Pessoa
+- Situação
+- Valor
+- Balanço visual
+
+Logo abaixo ficam os quatro campos de entrada:
 
 1. Pessoa
 2. Data
 3. Valor
 4. Observação
 
-Não há meta, poupança ou barra de progresso.
+## Nova regra de lançamento
+
+Todo valor lançado representa um valor que aquela pessoa pagou em favor dos avós.
+
+Por isso:
+
+- selecione sempre quem pagou;
+- informe o valor sempre como número positivo;
+- use Observação para indicar o motivo, por exemplo: Remédio, Consulta, Mercado, Transporte etc.
+
+Exemplo:
+
+- `Valciria | 06/10/2026 | 250 | Remédios`
+- `Deco | 07/10/2026 | 180 | Consulta`
+
+Não existem mais lançamentos negativos.
 
 ## Lógica estilo Splitwise
 
-A planilha não diz que uma pessoa deve dinheiro para outra.
+A planilha soma tudo que foi pago pelos cinco irmãos e calcula a média:
 
-Ela calcula quanto cada pessoa já contribuiu em comparação com sua parcela dos gastos realizados:
+`parcela de referência = total pago ÷ 5`
 
-`saldo individual = contribuições da pessoa − (gastos totais ÷ 5)`
+Depois compara quanto cada pessoa pagou com essa parcela:
+
+`saldo individual = total pago pela pessoa − parcela de referência`
 
 A situação aparece assim:
 
-- **Deve contribuir R$ X**: a pessoa ainda está abaixo da sua parcela atual dos gastos e precisa contribuir esse valor para ficar em dia.
-- **A haver R$ X**: a pessoa já colocou mais dinheiro do que sua parcela dos gastos. Esse crédito continua atribuído a ela.
-- **Em dia**: a pessoa está exatamente equilibrada naquele momento.
+- **Deve contribuir R$ X**: a pessoa pagou menos do que a média dos cinco naquele momento.
+- **A haver R$ X**: a pessoa pagou mais do que a média.
+- **Em dia**: a pessoa está exatamente na média.
 
-Isso evita a lógica de “X deve para Y” e mantém o acerto em torno do caixa comum da família.
+Ninguém deve diretamente para outra pessoa. O número funciona apenas como balanço de contribuição entre os cinco.
 
-## Regra de lançamento
+## Balanço visual
 
-- **Contribuição:** selecione a pessoa e informe um valor positivo.
-- **Gasto com os avós:** informe um valor negativo. O campo Pessoa pode ficar em branco.
+A coluna **Balanço** usa uma pequena barra com zero no centro:
 
-Exemplos:
+- vermelho para a esquerda = abaixo da média;
+- verde para a direita = acima da média;
+- cinza = em dia.
 
-- `Valciria | 06/10/2026 | 500 | Contribuição`
-- ` | 06/10/2026 | -200 | Remédio`
+A intensidade da barra é relativa ao maior desequilíbrio atual entre os cinco. O valor exato continua aparecendo na coluna **Valor**.
 
 ## Aplicar ou atualizar
 
@@ -59,6 +83,8 @@ Exemplos:
 6. No seletor de funções do Apps Script, escolha `setupSpreadsheet`.
 7. Clique em **Executar** e autorize, se solicitado.
 
-A versão atual tenta preservar os lançamentos já existentes antes de reconstruir o layout. Mesmo assim, para uma planilha que já esteja em uso real, é recomendável fazer uma cópia de segurança antes de executar `setupSpreadsheet()`.
+A versão atual tenta preservar os lançamentos já existentes antes de reconstruir o layout.
 
-Depois disso, as alterações feitas nos lançamentos atualizam o resumo automaticamente.
+**Importante:** lançamentos antigos negativos pertencem à lógica anterior e não entram mais nos cálculos. Se houver dados reais antigos, ajuste-os para o novo formato: escolha quem pagou e use o valor positivo.
+
+Depois disso, qualquer alteração nos lançamentos atualiza o resumo automaticamente.
