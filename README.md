@@ -12,30 +12,58 @@ Google Apps Script para criar uma planilha simples de controle familiar no Googl
 
 ## Estrutura
 
-Tudo fica na mesma aba **Lançamentos**:
+Tudo fica na mesma aba **Lançamentos**.
 
-- resumo financeiro e saldos individuais no topo;
-- lançamentos logo abaixo;
-- quatro campos de entrada: Pessoa, Data, Valor e Observação.
+No topo há um resumo compacto:
 
-### Regra de lançamento
+- reserva atual;
+- meta de reserva de R$ 3.000;
+- barra de progresso;
+- situação de cada pessoa.
+
+Logo abaixo ficam os quatro campos de entrada:
+
+1. Pessoa
+2. Data
+3. Valor
+4. Observação
+
+## Lógica estilo Splitwise
+
+A planilha não diz que uma pessoa deve dinheiro para outra.
+
+Ela calcula quanto cada pessoa já contribuiu em comparação com sua parcela dos gastos realizados:
+
+`saldo individual = contribuições da pessoa − (gastos totais ÷ 5)`
+
+A situação aparece assim:
+
+- **Deve contribuir R$ X**: a pessoa ainda está abaixo da sua parcela atual. Ao contribuir esse valor, o dinheiro entra no caixa/reserva familiar.
+- **A haver R$ X**: a pessoa já colocou mais dinheiro do que sua parcela dos gastos. Esse crédito continua atribuído a ela.
+- **Em dia**: a pessoa está exatamente equilibrada naquele momento.
+
+Isso evita a lógica de “X deve para Y” e transforma o acerto em contribuição para o caixa comum.
+
+## Regra de lançamento
 
 - **Contribuição:** selecione a pessoa e informe um valor positivo.
-- **Gasto com os avós:** informe um valor negativo. Pessoa pode ficar em branco.
+- **Gasto com os avós:** informe um valor negativo. O campo Pessoa pode ficar em branco.
 
-O resumo calcula automaticamente total contribuído, total gasto, reserva atual, progresso até R$ 3.000, cota dos gastos e saldo individual.
+Exemplos:
 
-Saldo individual = contribuição da pessoa − 1/5 dos gastos realizados.
+- `Valciria | 06/10/2026 | 500 | Contribuição`
+- ` | 06/10/2026 | -200 | Remédio`
 
-## Instalação / atualização
+## Aplicar ou atualizar
 
 1. Abra a planilha no Google Sheets.
 2. Vá em **Extensões → Apps Script**.
-3. Substitua todo o conteúdo de `Code.gs` pelo `Code.gs` deste repositório.
-4. Salve.
-5. No seletor de funções do Apps Script, escolha `setupSpreadsheet`.
-6. Clique em **Executar** e autorize, se solicitado.
+3. Abra `Code.gs`.
+4. Substitua todo o conteúdo pelo `Code.gs` deste repositório.
+5. Salve.
+6. No seletor de funções do Apps Script, escolha `setupSpreadsheet`.
+7. Clique em **Executar** e autorize, se solicitado.
 
-**Atenção:** `setupSpreadsheet()` recria o layout da aba Lançamentos e limpa seu conteúdo. Faça isso antes de começar a lançar dados. Depois da configuração inicial, não é necessário executá-la novamente para uso normal.
+A versão atual tenta preservar os lançamentos já existentes antes de reconstruir o layout. Mesmo assim, para uma planilha que já esteja em uso real, é recomendável fazer uma cópia de segurança antes de executar `setupSpreadsheet()`.
 
-A função também remove a antiga aba **Resumo**, caso exista, pois o resumo agora fica na própria aba **Lançamentos**.
+Depois disso, as alterações feitas nos lançamentos atualizam o resumo automaticamente.
