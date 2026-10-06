@@ -14,19 +14,14 @@ Google Apps Script para criar uma planilha simples de controle familiar no Googl
 
 Tudo fica na mesma aba **Lançamentos**.
 
-No topo há um resumo compacto:
-
-- reserva atual;
-- meta de reserva de R$ 3.000;
-- barra de progresso;
-- situação de cada pessoa.
-
-Logo abaixo ficam os quatro campos de entrada:
+No topo há somente um resumo compacto com a situação de cada pessoa. Logo abaixo ficam os quatro campos de entrada:
 
 1. Pessoa
 2. Data
 3. Valor
 4. Observação
+
+Não há meta, poupança ou barra de progresso.
 
 ## Lógica estilo Splitwise
 
@@ -38,11 +33,11 @@ Ela calcula quanto cada pessoa já contribuiu em comparação com sua parcela do
 
 A situação aparece assim:
 
-- **Deve contribuir R$ X**: a pessoa ainda está abaixo da sua parcela atual. Ao contribuir esse valor, o dinheiro entra no caixa/reserva familiar.
+- **Deve contribuir R$ X**: a pessoa ainda está abaixo da sua parcela atual dos gastos e precisa contribuir esse valor para ficar em dia.
 - **A haver R$ X**: a pessoa já colocou mais dinheiro do que sua parcela dos gastos. Esse crédito continua atribuído a ela.
 - **Em dia**: a pessoa está exatamente equilibrada naquele momento.
 
-Isso evita a lógica de “X deve para Y” e transforma o acerto em contribuição para o caixa comum.
+Isso evita a lógica de “X deve para Y” e mantém o acerto em torno do caixa comum da família.
 
 ## Regra de lançamento
 
