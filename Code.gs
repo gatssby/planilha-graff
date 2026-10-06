@@ -2,8 +2,7 @@ const CONFIG = {
   TITLE: 'Controle Familiar - Avós',
   SHEET_ENTRIES: 'Lançamentos',
   PEOPLE: ['Valciria', 'Deco', 'Vivi', 'Nega', 'Valdi'],
-  SAVINGS_GOAL: 3000,
-  HEADER_ROW: 12,
+  HEADER_ROW: 9,
 };
 
 function onOpen() {
@@ -62,7 +61,6 @@ function refreshDashboard() {
     : [];
 
   const contributions = Object.fromEntries(CONFIG.PEOPLE.map(name => [name, 0]));
-  let totalContributed = 0;
   let totalSpent = 0;
 
   rows.forEach(([person, date, amount]) => {
@@ -72,24 +70,16 @@ function refreshDashboard() {
 
     if (value > 0 && Object.prototype.hasOwnProperty.call(contributions, personName)) {
       contributions[personName] += value;
-      totalContributed += value;
     } else if (value < 0) {
       totalSpent += Math.abs(value);
     }
   });
 
   const fairShare = CONFIG.PEOPLE.length ? totalSpent / CONFIG.PEOPLE.length : 0;
-  const reserve = totalContributed - totalSpent;
 
-  // Resumo compacto.
-  sheet.getRange('B2').setValue(reserve).setNumberFormat('R$ #,##0.00');
-  sheet.getRange('D2').setValue(CONFIG.SAVINGS_GOAL).setNumberFormat('R$ #,##0.00');
-  sheet.getRange('A3:D3').merge();
-  sheet.getRange('A3').setFormula('=SPARKLINE(MAX(0,MIN(B2/D2,1)),{"charttype","bar";"max",1})');
-
-  // Estilo Splitwise: ninguém "deve para" outra pessoa.
-  // Se o saldo está negativo, a pessoa deve contribuir esse valor para o caixa/reserva.
-  // Se está positivo, o valor continua sendo crédito individual dela dentro da reserva.
+  // Estilo Splitwise: ninguém deve para outra pessoa.
+  // Quem está abaixo da sua parcela dos gastos deve contribuir para o caixa comum.
+  // Quem está acima mantém esse valor como crédito individual ("a haver").
   const statuses = CONFIG.PEOPLE.map(name => {
     const balance = contributions[name] - fairShare;
     if (balance < -0.005) return [name, 'Deve contribuir', Math.abs(balance)];
@@ -97,8 +87,8 @@ function refreshDashboard() {
     return [name, 'Em dia', 0];
   });
 
-  sheet.getRange(6, 1, CONFIG.PEOPLE.length, 3).setValues(statuses);
-  sheet.getRange(6, 3, CONFIG.PEOPLE.length, 1).setNumberFormat('R$ #,##0.00');
+  sheet.getRange(3, 1, CONFIG.PEOPLE.length, 3).setValues(statuses);
+  sheet.getRange(3, 3, CONFIG.PEOPLE.length, 1).setNumberFormat('R$ #,##0.00');
 
   const backgrounds = [];
   const fontColors = [];
@@ -114,7 +104,8 @@ function refreshDashboard() {
       fontColors.push(['#222222', '#5f6368', '#5f6368']);
     }
   });
-  sheet.getRange(6, 1, CONFIG.PEOPLE.length, 3)
+
+  sheet.getRange(3, 1, CONFIG.PEOPLE.length, 3)
     .setBackgrounds(backgrounds)
     .setFontColors(fontColors);
 }
@@ -130,7 +121,7 @@ function setupEntriesSheet_(sheet) {
   sheet.setFrozenRows(0);
   sheet.setTabColor('#444444');
 
-  // Cabeçalho pequeno para ocupar pouco espaço no celular.
+  // Cabeçalho compacto para ocupar pouco espaço no celular.
   sheet.getRange('A1:D1').merge().setValue(CONFIG.TITLE);
   sheet.getRange('A1:D1')
     .setFontSize(14)
@@ -140,25 +131,21 @@ function setupEntriesSheet_(sheet) {
     .setFontColor('#ffffff');
   sheet.setRowHeight(1, 28);
 
-  sheet.getRange('A2:D2').setValues([['Reserva', '', 'Meta', '']]);
-  sheet.getRange('A2').setFontWeight('bold');
-  sheet.getRange('C2').setFontWeight('bold');
-  sheet.setRowHeight(2, 28);
-  sheet.setRowHeight(3, 16);
-
-  sheet.getRange('A5:C5').setValues([['Pessoa', 'Situação', 'Valor']]);
-  sheet.getRange('A5:C5')
+  sheet.getRange('A2:C2').setValues([['Pessoa', 'Situação', 'Valor']]);
+  sheet.getRange('A2:C2')
     .setFontWeight('bold')
     .setFontColor('#5f6368')
     .setHorizontalAlignment('left');
-  sheet.setRowHeight(5, 24);
+  sheet.setRowHeight(2, 24);
 
-  sheet.getRange('A11:D11').merge().setValue('Lançamentos');
-  sheet.getRange('A11:D11')
+  sheet.setRowHeights(3, CONFIG.PEOPLE.length, 28);
+
+  sheet.getRange('A8:D8').merge().setValue('Lançamentos');
+  sheet.getRange('A8:D8')
     .setFontWeight('bold')
     .setFontSize(11)
     .setFontColor('#5f6368');
-  sheet.setRowHeight(11, 24);
+  sheet.setRowHeight(8, 24);
 
   sheet.getRange(CONFIG.HEADER_ROW, 1, 1, 4)
     .setValues([['Pessoa', 'Data', 'Valor', 'Observação']])
@@ -173,28 +160,27 @@ function setupEntriesSheet_(sheet) {
     .build();
 
   const firstDataRow = CONFIG.HEADER_ROW + 1;
-  sheet.getRange(firstDataRow, 1, 988, 1).setDataValidation(validation);
-  sheet.getRange(firstDataRow, 2, 988, 1).setNumberFormat('dd/mm/yyyy');
-  sheet.getRange(firstDataRow, 3, 988, 1).setNumberFormat('R$ #,##0.00');
-  sheet.getRange(firstDataRow, 1, 988, 4).setVerticalAlignment('middle');
+  const dataRows = 991;
+  sheet.getRange(firstDataRow, 1, dataRows, 1).setDataValidation(validation);
+  sheet.getRange(firstDataRow, 2, dataRows, 1).setNumberFormat('dd/mm/yyyy');
+  sheet.getRange(firstDataRow, 3, dataRows, 1).setNumberFormat('R$ #,##0.00');
+  sheet.getRange(firstDataRow, 1, dataRows, 4).setVerticalAlignment('middle');
 
   // Larguras pensadas para uso no celular.
   sheet.setColumnWidth(1, 105);
-  sheet.setColumnWidth(2, 92);
+  sheet.setColumnWidth(2, 112);
   sheet.setColumnWidth(3, 105);
   sheet.setColumnWidth(4, 220);
+  sheet.setRowHeights(firstDataRow, dataRows, 32);
 
-  sheet.setRowHeights(6, CONFIG.PEOPLE.length, 28);
-  sheet.setRowHeights(firstDataRow, 988, 32);
-
-  // Instruções ficam escondidas para não poluir a interface.
+  // Instruções escondidas para não poluir a interface.
   sheet.getRange('F1').setValue('Como usar');
   sheet.getRange('F2').setValue('Contribuição: valor positivo + nome da pessoa.');
   sheet.getRange('F3').setValue('Gasto com os avós: valor negativo; Pessoa pode ficar em branco.');
-  sheet.getRange('F4').setValue('“Deve contribuir” significa repor esse valor no caixa/reserva familiar.');
+  sheet.getRange('F4').setValue('“Deve contribuir” significa completar a parcela da pessoa nos gastos já realizados.');
   sheet.hideColumns(6);
 
-  sheet.getRange(CONFIG.HEADER_ROW, 1, 989, 4).createFilter();
+  sheet.getRange(CONFIG.HEADER_ROW, 1, dataRows + 1, 4).createFilter();
 }
 
 function readExistingEntries_(sheet) {
